@@ -1,0 +1,4 @@
+Corrigir caracter de nova página
+corrigir espaço entre falas com travessão
+Tirar linhas demasiadamente longas.
+

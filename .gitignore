@@ -1,0 +1,15 @@
+# Arquivos Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.ipynb_checkpoints/
+
+# Ambientes virtuais
+venv/
+env/
+.env
+
+# Seus datasets (Opcional: se o CSV for gigante >100MB, o GitHub bloqueia)
+# Se o CSV for pequeno, pode remover a linha abaixo
+# *.csv
+# *.jsonl
