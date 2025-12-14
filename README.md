@@ -9,6 +9,8 @@ Como o GitHub possui limite de tamanho de arquivos, o modelo treinado está hosp
 ### Passo 1: Baixar
 👉 **[CLIQUE AQUI PARA BAIXAR O MODELO (Google Drive)](https://drive.google.com/file/d/1IxI2T9obotUj95ks53MYMfrTa167Cg_8/view?usp=sharing)**
 
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1TQi6B1nTyt3Y5QipPOu5MdDqTxLVW7s7?usp=sharing)
+
 ### Passo 2: Organizar a Pasta
 Após baixar o arquivo `.zip`, extraia o conteúdo. Você deve garantir que a pasta descompactada (vamos chamá-la de `ModeloFinal`) contenha os seguintes arquivos essenciais:
 
