@@ -59,4 +59,4 @@ def extrair_obra_especifica(indice_alvo):
         print(f"Erro: Índice {indice_alvo} não encontrado. O arquivo tem apenas {contador_encontrados + 1} obras.")
 
 # --- MUDE O NÚMERO AQUI PARA ESCOLHER QUAL OBRA PEGAR ---
-extrair_obra_especifica(5) # (0, 1, 2)
+extrair_obra_especifica(6) # ideias teatro (número 7)

@@ -3,7 +3,7 @@ import io
 import re
 import os
 
-# --- MÓDULO DE METADADOS (Inalterado) ---
+# --- MÓDULO DE METADADOS (Mantido igual) ---
 def separar_metadados_do_texto(linha_bruta):
     if "/pdf/" not in linha_bruta: return None, None
     f = io.StringIO(linha_bruta)
@@ -18,23 +18,34 @@ def separar_metadados_do_texto(linha_bruta):
     escritor.writerow(lista_metadados)
     return output.getvalue().strip(), inicio_texto
 
-# --- NOVO: Detecta Capítulos (Numerais Romanos ou "CAPÍTULO X") ---
+# --- Função Auxiliar de Diálogos ---
+def separar_dialogos_colados(texto):
+    # Procura por: Dois pontos (:) + espaços opcionais (\s*) + Travessão (—)
+    # Substitui por: Dois pontos + Quebra de linha (\n) + Travessão
+    return re.sub(r':\s*—', ':\n—', texto)
+
+# --- Detecta Capítulos (Mantido o seu original) ---
 def verificar_se_eh_capitulo(linha):
-    # Regex para pegar:
-    # 1. Numerais Romanos sozinhos: ^[IVXLCDM]+$ (ex: "III", "IV")
-    # 2. Palavra Capítulo + Numeral: ^CAPÍTULO\s+[IVXLCDM]+ (ex: "CAPÍTULO IV")
-    # 3. Palavra Capítulo + Número: ^CAPÍTULO\s+\d+
-    # Ignora espaços no começo/fim e é Case Insensitive (re.IGNORECASE)
-    padrao = r'^(capítulo\s+([ivxlcdm]+|\d+)|[ivxlcdm]+)$'
+    # Adicionamos "parecer" na lista de palavras que funcionam como Título/Capítulo
+    termos_estruturais = r'índice|sumário|prólogo|prefácio|introdução|fim|parecer'
+    
+    # A regex agora pega:
+    # 1. Capítulo numérico/romano (CAPÍTULO IV, III)
+    # 2. Palavras estruturais isoladas ou seguidas de texto (PARECER SOBRE...)
+    
+    # Nota: adicionei ".*" depois de termos_estruturais para pegar "Parecer sobre..."
+    padrao = f'^(capítulo\s+([ivxlcdm]+|\d+)|[ivxlcdm]+|({termos_estruturais}).*)$'
+    
     return bool(re.match(padrao, linha.strip(), re.IGNORECASE))
 
 def verificar_inicio_maiusculo(linha):
-    # Antes era: ...[A-Z]
-    # Agora é:   ...([A-Z]|[0-9])
-    # Isso diz: "Se começar com Letra Maiúscula OU Número, é início de bloco novo"
+    # Aceita Maiúscula ou Número
     return bool(re.match(r'^[“"\'\-\—]*\s*([A-Z]|[0-9])', linha))
 
 def organizar_paragrafos(texto_bruto):
+    # 1. APLICA A CORREÇÃO DE DIÁLOGOS ANTES DE DIVIDIR AS LINHAS
+    texto_bruto = separar_dialogos_colados(texto_bruto)
+    
     linhas = texto_bruto.split('\n')
     paragrafos_processados = []
     buffer = []
@@ -45,22 +56,19 @@ def organizar_paragrafos(texto_bruto):
     while i < len(linhas):
         linha_atual = linhas[i].strip()
         
-        # --- LIMPEZA INICIAL ---
-        if linha_atual == '"': # Remove aspas órfãs
+        # --- LIMPEZA ---
+        if linha_atual == '"': 
             i += 1; continue
 
-        # Normaliza travessões (Transforma en-dash – em em-dash —)
         linha_atual = linha_atual.replace('–', '—') 
-        
-        # Remove excesso de pontos
         linha_atual = re.sub(r'\.{4,}', ' ', linha_atual).strip()
 
         if not linha_atual: 
             i += 1; continue
             
-        # --- TAGS DE POESIA ---
+        # --- POESIA ---
         if "<POESIA>" in linha_atual:
-            if buffer: # Salva prosa pendente
+            if buffer: 
                 paragrafos_processados.append(re.sub(r'\s+', ' ', " ".join(buffer)).strip())
                 buffer = [] 
             dentro_de_poesia = True
@@ -73,15 +81,11 @@ def organizar_paragrafos(texto_bruto):
         if dentro_de_poesia:
             paragrafos_processados.append(linha_atual); i += 1; continue
 
-        # --- LÓGICA DE PROSA ---
-        
-        # Se a LINHA ATUAL for um título de capítulo, salvamos o buffer anterior e salvamos ela isolada
+        # --- CAPÍTULOS ---
         if verificar_se_eh_capitulo(linha_atual):
             if buffer:
                 paragrafos_processados.append(re.sub(r'\s+', ' ', " ".join(buffer)).strip())
                 buffer = []
-            
-            # Salva o capítulo isolado (sem juntar com nada)
             paragrafos_processados.append(linha_atual)
             i += 1
             continue
@@ -90,33 +94,39 @@ def organizar_paragrafos(texto_bruto):
         
         # --- DECISÃO DE JUNTAR ---
         termina_pontuacao = linha_atual.endswith(('.', '!', '?', '...'))
+        termina_dois_pontos = linha_atual.endswith(':') # <--- NOVO CHECK
         
         proxima_comeca_maiuscula = False
         proxima_eh_tag = False
-        proxima_eh_capitulo = False # Nova flag
+        proxima_eh_capitulo = False
+        proxima_comeca_travessao = False # <--- NOVO CHECK
 
         if i + 1 < len(linhas):
             prox_raw = linhas[i+1].strip()
-            # Aplica a mesma limpeza básica na próxima linha para checar
             prox_clean = re.sub(r'\.{4,}', ' ', prox_raw).strip()
             
             if prox_clean and prox_clean != '"':
                 if "<POESIA>" in prox_clean:
                     proxima_eh_tag = True
                 
-                # Checa se a próxima linha é um capítulo (ex: "IV")
-                # Se for, temos que fechar o parágrafo atual AGORA.
                 elif verificar_se_eh_capitulo(prox_clean):
                     proxima_eh_capitulo = True
                 
                 else:
                     proxima_comeca_maiuscula = verificar_inicio_maiusculo(prox_clean)
+                    # Verifica se a próxima linha é fala de personagem
+                    if prox_clean.startswith('—'):
+                        proxima_comeca_travessao = True
 
-        # Regras para FECHAR o parágrafo:
-        # 1. Pontuação + Maiúscula (Padrão)
-        # 2. Próxima linha é TAG de poesia
-        # 3. Próxima linha é um CAPÍTULO/TÍTULO (Isso impede de colar texto no título)
-        if (termina_pontuacao and proxima_comeca_maiuscula) or proxima_eh_tag or proxima_eh_capitulo:
+        # CONDIÇÕES PARA QUEBRAR O PARÁGRAFO:
+        # 1. Padrão: Ponto + Maiúscula/Número
+        # 2. Diálogo: Dois Pontos + Travessão na próxima linha
+        # 3. Estrutural: Tags ou Capítulos vindo a seguir
+        
+        caso_ponto_maiuscula = (termina_pontuacao and proxima_comeca_maiuscula)
+        caso_dialogo_introduzido = (termina_dois_pontos and proxima_comeca_travessao)
+
+        if caso_ponto_maiuscula or caso_dialogo_introduzido or proxima_eh_tag or proxima_eh_capitulo:
             texto_limpo = re.sub(r'\s+', ' ', " ".join(buffer)).strip()
             paragrafos_processados.append(texto_limpo)
             buffer = [] 
