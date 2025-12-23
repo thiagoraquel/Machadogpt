@@ -41,69 +41,78 @@ def organizar_paragrafos(texto_bruto):
     paragrafos_processados = []
     buffer = []
     
-    # NOVA VARIÁVEL DE ESTADO
     dentro_de_poesia = False
 
     i = 0
     while i < len(linhas):
         linha_atual = linhas[i].strip()
         
-        # Pula linhas vazias (mas se quiser manter quebras vazias na poesia, teríamos que mudar aqui)
-        # Por enquanto, mantivemos pulando para limpar o texto, mas a poesia será linha a linha.
-        if not linha_atual: 
+        # --- LIMPEZA PRÉVIA (Resolvendo seus dois problemas) ---
+
+        # 1. Remove linhas que são apenas uma aspas solitária (Sobras do CSV)
+        if linha_atual == '"':
             i += 1
             continue
 
+        # 2. Remove sequências de 4 ou mais pontos (................)
+        # Substitui por espaço para evitar colar palavras caso estejam no meio do texto
+        linha_atual = re.sub(r'\.{4,}', ' ', linha_atual).strip()
+
+        # Se depois de limpar os pontos a linha ficou vazia, pula ela
+        if not linha_atual: 
+            i += 1
+            continue
+            
+        # --------------------------------------------------------
+
         # --- A: DETECÇÃO DAS TAGS ---
         
-        # 1. Achou o início da Poesia?
         if "<POESIA>" in linha_atual:
-            # Se tinha prosa acumulada antes do poema começar, salva ela agora
             if buffer:
                 texto_unificado = " ".join(buffer)
                 texto_limpo = re.sub(r'\s+', ' ', texto_unificado).strip()
                 paragrafos_processados.append(texto_limpo)
-                buffer = [] # Limpa buffer
+                buffer = [] 
 
             dentro_de_poesia = True
-            paragrafos_processados.append(linha_atual) # Adiciona a tag <POESIA> no arquivo
+            paragrafos_processados.append(linha_atual) 
             i += 1
             continue
 
-        # 2. Achou o fim da Poesia? (Aceita <\POESIA> ou </POESIA>)
         if "<\POESIA>" in linha_atual or "</POESIA>" in linha_atual:
             dentro_de_poesia = False
-            paragrafos_processados.append(linha_atual) # Adiciona a tag <\POESIA> no arquivo
+            paragrafos_processados.append(linha_atual) 
             i += 1
             continue
 
-        # --- B: COMPORTAMENTO "DENTRO DE POESIA" ---
+        # --- B: DENTRO DE POESIA ---
         if dentro_de_poesia:
-            # Modo cópia simples: não junta, não verifica pontuação, só copia.
             paragrafos_processados.append(linha_atual)
             i += 1
             continue
 
-        # --- C: COMPORTAMENTO "PROSA NORMAL" (Buffer) ---
+        # --- C: PROSA NORMAL ---
         buffer.append(linha_atual)
         
-        # Lógica V3 de junção
         termina_pontuacao = linha_atual.endswith(('.', '!', '?', '...'))
         
         proxima_comeca_maiuscula = False
         if i + 1 < len(linhas):
-            proxima_linha = linhas[i+1].strip()
-            # Precisamos ignorar as tags ao olhar para o futuro para não quebrar a lógica
-            if proxima_linha and "<POESIA>" not in proxima_linha:
-                proxima_comeca_maiuscula = verificar_inicio_maiusculo(proxima_linha)
+            # Pega a próxima linha ORIGINAL para checar, mas aplica a limpeza de pontos nela
+            # temporariamente só para ver se ela não vira vazia
+            prox_linha_raw = linhas[i+1].strip()
+            prox_linha_limpa = re.sub(r'\.{4,}', ' ', prox_linha_raw).strip()
+            
+            # Se a próxima linha for só aspas ou pontos, ela "não existe" para a lógica
+            if prox_linha_limpa and prox_linha_limpa != '"':
+                if "<POESIA>" not in prox_linha_limpa:
+                    proxima_comeca_maiuscula = verificar_inicio_maiusculo(prox_linha_limpa)
 
-        # Se a próxima linha for uma TAG de poesia, força o fechamento do parágrafo atual
         proxima_eh_tag = False
         if i + 1 < len(linhas):
              if "<POESIA>" in linhas[i+1]:
                  proxima_eh_tag = True
 
-        # Decisão: Fecha parágrafo se (Pontuação + Maiúscula) OU (Vai começar poesia logo depois)
         if (termina_pontuacao and proxima_comeca_maiuscula) or proxima_eh_tag:
             texto_unificado = " ".join(buffer)
             texto_limpo = re.sub(r'\s+', ' ', texto_unificado).strip()
@@ -112,7 +121,6 @@ def organizar_paragrafos(texto_bruto):
 
         i += 1
     
-    # --- RESIDUAL (O que sobrou no fim do arquivo) ---
     if buffer:
         texto_unificado = " ".join(buffer)
         texto_limpo = re.sub(r'\s+', ' ', texto_unificado).strip()
