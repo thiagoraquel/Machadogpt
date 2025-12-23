@@ -3,14 +3,12 @@ import io
 import re
 import os
 
-# --- SUAS FUNÇÕES (Lógica Preservada) ---
-
+# --- 1. MÓDULO DE METADADOS ---
 def separar_metadados_do_texto(linha_bruta):
-    # 1. Filtro de Segurança
+    # Filtro de segurança para identificar linhas de cabeçalho
     if "/pdf/" not in linha_bruta:
         return None, None
 
-    # 2. Parsear a linha
     f = io.StringIO(linha_bruta)
     leitor = csv.reader(f)
     try:
@@ -18,124 +16,151 @@ def separar_metadados_do_texto(linha_bruta):
     except StopIteration:
         return None, None
 
-    # 3. O Corte
-    if len(colunas) < 2: return linha_bruta, "" # Proteção contra linhas quebradas
+    # Proteção para linhas incompletas
+    if len(colunas) < 2: return linha_bruta, ""
     
+    # Separa tudo o que é metadado (colunas[:-1]) do texto vazado (colunas[-1])
     lista_metadados = colunas[:-1] 
-    inicio_texto = colunas[-1] # Texto "vazado" (Geralmente duplica o título)
+    inicio_texto = colunas[-1] 
 
-    # 4. Reconstrói a linha de metadados limpa
+    # Reconstrói a linha de metadados para formato CSV
     output = io.StringIO()
     escritor = csv.writer(output, quoting=csv.QUOTE_MINIMAL)
     escritor.writerow(lista_metadados)
-    linha_metadados_limpa = output.getvalue().strip()
+    
+    # Retorna (metadados_limpos, texto_inicial_descartado)
+    return output.getvalue().strip(), inicio_texto
 
-    return linha_metadados_limpa, inicio_texto
-
+# --- 2. MÓDULO DE LÓGICA DE PARÁGRAFOS (Atualizada com Poesia Manual) ---
 def verificar_inicio_maiusculo(linha):
+    # Retorna True se a linha começa com letra Maiúscula (ignora aspas/travessão)
     return bool(re.match(r'^[“"\'\-\—]*\s*[A-Z]', linha))
 
-def organizar_paragrafos_v3(texto_bruto):
+def organizar_paragrafos(texto_bruto):
     linhas = texto_bruto.split('\n')
     paragrafos_processados = []
     buffer = []
+    
+    # NOVA VARIÁVEL DE ESTADO
+    dentro_de_poesia = False
 
     i = 0
     while i < len(linhas):
         linha_atual = linhas[i].strip()
         
+        # Pula linhas vazias (mas se quiser manter quebras vazias na poesia, teríamos que mudar aqui)
+        # Por enquanto, mantivemos pulando para limpar o texto, mas a poesia será linha a linha.
         if not linha_atual: 
             i += 1
             continue
 
+        # --- A: DETECÇÃO DAS TAGS ---
+        
+        # 1. Achou o início da Poesia?
+        if "<POESIA>" in linha_atual:
+            # Se tinha prosa acumulada antes do poema começar, salva ela agora
+            if buffer:
+                texto_unificado = " ".join(buffer)
+                texto_limpo = re.sub(r'\s+', ' ', texto_unificado).strip()
+                paragrafos_processados.append(texto_limpo)
+                buffer = [] # Limpa buffer
+
+            dentro_de_poesia = True
+            paragrafos_processados.append(linha_atual) # Adiciona a tag <POESIA> no arquivo
+            i += 1
+            continue
+
+        # 2. Achou o fim da Poesia? (Aceita <\POESIA> ou </POESIA>)
+        if "<\POESIA>" in linha_atual or "</POESIA>" in linha_atual:
+            dentro_de_poesia = False
+            paragrafos_processados.append(linha_atual) # Adiciona a tag <\POESIA> no arquivo
+            i += 1
+            continue
+
+        # --- B: COMPORTAMENTO "DENTRO DE POESIA" ---
+        if dentro_de_poesia:
+            # Modo cópia simples: não junta, não verifica pontuação, só copia.
+            paragrafos_processados.append(linha_atual)
+            i += 1
+            continue
+
+        # --- C: COMPORTAMENTO "PROSA NORMAL" (Buffer) ---
         buffer.append(linha_atual)
         
-        # --- LÓGICA DE DECISÃO ---
+        # Lógica V3 de junção
         termina_pontuacao = linha_atual.endswith(('.', '!', '?', '...'))
         
         proxima_comeca_maiuscula = False
         if i + 1 < len(linhas):
             proxima_linha = linhas[i+1].strip()
-            if proxima_linha:
+            # Precisamos ignorar as tags ao olhar para o futuro para não quebrar a lógica
+            if proxima_linha and "<POESIA>" not in proxima_linha:
                 proxima_comeca_maiuscula = verificar_inicio_maiusculo(proxima_linha)
 
-        if termina_pontuacao and proxima_comeca_maiuscula:
-            texto_completo = " ".join(buffer)
-            paragrafos_processados.append(texto_completo)
+        # Se a próxima linha for uma TAG de poesia, força o fechamento do parágrafo atual
+        proxima_eh_tag = False
+        if i + 1 < len(linhas):
+             if "<POESIA>" in linhas[i+1]:
+                 proxima_eh_tag = True
+
+        # Decisão: Fecha parágrafo se (Pontuação + Maiúscula) OU (Vai começar poesia logo depois)
+        if (termina_pontuacao and proxima_comeca_maiuscula) or proxima_eh_tag:
+            texto_unificado = " ".join(buffer)
+            texto_limpo = re.sub(r'\s+', ' ', texto_unificado).strip()
+            paragrafos_processados.append(texto_limpo)
             buffer = [] 
 
         i += 1
     
+    # --- RESIDUAL (O que sobrou no fim do arquivo) ---
     if buffer:
-        texto_final = " ".join(buffer)
-        paragrafos_processados.append(texto_final)
+        texto_unificado = " ".join(buffer)
+        texto_limpo = re.sub(r'\s+', ' ', texto_unificado).strip()
+        paragrafos_processados.append(texto_limpo)
     
     return paragrafos_processados
 
-# --- PROGRAMA PRINCIPAL ---
-
-def processar_arquivo_csv(arquivo_entrada, arquivo_saida):
+# --- 3. EXECUTOR PRINCIPAL ---
+def processar_dataset_final(arquivo_entrada, arquivo_saida):
     if not os.path.exists(arquivo_entrada):
         print(f"Erro: Arquivo '{arquivo_entrada}' não encontrado.")
         return
 
-    print(f"Iniciando processamento de '{arquivo_entrada}'...")
+    print(f"Processando '{arquivo_entrada}'...")
 
     with open(arquivo_entrada, 'r', encoding='utf-8') as f_in, \
          open(arquivo_saida, 'w', encoding='utf-8') as f_out:
         
-        # Lê todas as linhas brutas (incluindo \n)
         linhas_arquivo = f_in.readlines()
+        buffer_obra_atual = [] 
         
-        buffer_texto_obra_atual = [] # Vai guardar as linhas de texto da obra sendo lida
-        primeira_obra = True
-
-        # 1. Processa o Cabeçalho (Primeira Linha)
         if linhas_arquivo:
-            header = linhas_arquivo[0]
-            f_out.write("=== CABEÇALHO DO ARQUIVO ===\n")
-            f_out.write(header)
-            f_out.write("\n" + ("="*40) + "\n\n")
+            f_out.write("=== DADOS DO DATASET ===\n")
+            f_out.write(linhas_arquivo[0].strip() + "\n\n")
 
-        # 2. Loop pelas linhas (começando da segunda)
         for linha in linhas_arquivo[1:]:
             
-            # Checa se é uma linha de METADADOS (Nova Obra)
             if "/pdf/" in linha:
-                
-                # --- PASSO A: Salvar a obra ANTERIOR (se houver) ---
-                if buffer_texto_obra_atual:
-                    # Junta tudo para enviar para a função de parágrafos
-                    # Usamos "".join para manter os \n originais que o readlines pegou
-                    texto_completo_bruto = "".join(buffer_texto_obra_atual)
+                if buffer_obra_atual:
+                    texto_bruto_completo = "".join(buffer_obra_atual)
+                    paragrafos_finais = organizar_paragrafos(texto_bruto_completo)
                     
-                    paragrafos_limpos = organizar_paragrafos_v3(texto_completo_bruto)
-                    
-                    # Escreve os parágrafos no arquivo com linha em branco entre eles
-                    f_out.write("\n\n".join(paragrafos_limpos))
-                    f_out.write("\n\n" + ("#"*50) + "\n\n") # Separador visual de fim de obra
-                    
-                    buffer_texto_obra_atual = [] # Limpa para a nova obra
+                    f_out.write("\n\n".join(paragrafos_finais))
+                    f_out.write("\n\n" + ("="*60) + "\n\n") 
+                    buffer_obra_atual = [] 
 
-                # --- PASSO B: Processar os metadados da NOVA obra ---
-                meta_limpa, inicio_texto_vazado = separar_metadados_do_texto(linha)
-                
-                if meta_limpa:
-                    f_out.write(meta_limpa + "\n\n")
-                    # Nota: Ignoramos o 'inicio_texto_vazado' aqui porque você mencionou
-                    # que ele é duplicado do título. O texto real virá nas próximas linhas.
-            
+                meta, _ = separar_metadados_do_texto(linha)
+                if meta:
+                    f_out.write(f"METADADOS: {meta}\n\n")
             else:
-                # É linha de texto (corpo da obra)
-                buffer_texto_obra_atual.append(linha)
+                buffer_obra_atual.append(linha)
 
-        # --- PASSO FINAL: Salvar a ÚLTIMA obra (que sobrou no buffer ao fim do arquivo) ---
-        if buffer_texto_obra_atual:
-            texto_completo_bruto = "".join(buffer_texto_obra_atual)
-            paragrafos_limpos = organizar_paragrafos_v3(texto_completo_bruto)
-            f_out.write("\n\n".join(paragrafos_limpos))
+        if buffer_obra_atual:
+            texto_bruto_completo = "".join(buffer_obra_atual)
+            paragrafos_finais = organizar_paragrafos(texto_bruto_completo)
+            f_out.write("\n\n".join(paragrafos_finais))
 
-    print(f"Sucesso! Resultado salvo em '{arquivo_saida}'")
+    print(f"Concluído! Resultado salvo em '{arquivo_saida}'.")
 
-# Executa
-processar_arquivo_csv('teste.csv', 'resultado_teste.txt')
+# --- RODAR ---
+processar_dataset_final('teste.csv', 'machado_processado.txt')
