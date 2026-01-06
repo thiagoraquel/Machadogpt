@@ -1,23 +1,11 @@
 === DADOS DO DATASET ===
 arquivo,caminho completo,categoria,autor,paginas,titulo,edicao,publicacao,publicacao ano,publicacao editora,publicacao cidade,edicao ano,edicao editora,edicao cidade,edicao titulo,edicao volume,texto
 
-METADADOS: ideiasTeatro.pdf,./pdf/crítica/ideiasTeatro.pdf,crítica,Machado de Assis,9,Idéias sobre o Teatro,"Textos-Fonte: Obra Completa de Machado de Assis, Rio de Janeiro: Nova Aguilar, vol. II, 1994. Crítica Teatral, Machado de Assis. Rio de Janeiro: Edições W.M. Jackson, 1938.","Publicado originalmente em O Espelho,I, 25 de set.; II, 02 de out.; 25 de dez. de 1859; A Marmota, Rio de Janeiro, 16 de março de 1860.",1860,O Espelho,Rio de Janeiro,1938,Nova Aguilar,Rio de Janeiro,Obra Completa de Machado de Assis,II
+METADADOS: guilhermeMalta.pdf,./pdf/crítica/guilhermeMalta.pdf,crítica,Machado de Assis,7,Un cuento endemoniado e La mujer misteriosa. por Guilherme Malta.,"Texto-Fonte: Crítica Literária de Machado de Assis, Rio de Janeiro: W. M. Jackson, 1938.",Publicado originalmente no Jornal do Comércio em 02/07/1872. Carta ao sr. Conselheiro Lopes Neto,1872,Jornal do Comércio,Rio de Janeiro,1938,W. M. Jackson,Rio de Janeiro,Crítica Literária de Machado de Assis,
 
-O estilo é fácil e corrente, e o diálogo travado sem esforço. À minha opinião que se pode representar em qualquer dos teatros desta corte.
+E a tua conclusão será como a tua premissa; em caso de tédio, antes um marido que nada.
 
-O estilo é fácil e corrente, e o diálogo travado sem esforço. É minha opinião que se pode representar em qualquer dos teatros desta corte.
-
-Rio, 8 de março de 1862.
-
-Machado de Assis
-
-PARECER SOBRE A COMÉDIA OS ÍNTIMOS, EM QUATRO ATOS ,
-
-DE VICTORIEN SARDOU. TRADUÇÃO.
-
-A comédia Os íntimos que me vem sujeita a julgamento é uma das mais verdadeiras que se hão visto depois de Molière, e por justo título aplaudida.
-
-Dando-lhe o meu assenso e louvando-a como obra literária, acho que não só pode, mas deve ser representada e assim outras desta força que traduzam para o público a verdadeira comédia, a única digna deste nome.
+SALTEADORES DA TESSÁLIA (1893, novembro) Tudo isto cansa, tudo isto exaure. Este sol é o mesmo sol, debaixo do qual, segundo uma palavra antiga, nada existe que seja novo. A lua não é outra lua.
 
 Ai.
 
