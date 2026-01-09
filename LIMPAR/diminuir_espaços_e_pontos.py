@@ -19,14 +19,14 @@ def corrigir_pontuacao_texto(texto):
     if not texto:
         return ""
     
-    # A mágica acontece aqui:
-    # Troca "espaço + ponto" por "ponto"
-    texto_corrigido = texto.replace(" .", ".")
+    texto = texto.replace(" ,", ",")
+
+    texto = texto.replace(" .", ".")
     
     # Dica extra: Se quiser fazer o mesmo para vírgulas, descomente abaixo:
     # texto_corrigido = texto_corrigido.replace(" ,", ",")
     
-    return texto_corrigido
+    return texto
 
 def executar_correcao():
     if not os.path.exists(ARQUIVO_ENTRADA):
