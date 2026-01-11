@@ -7,6 +7,7 @@ O primeiro volume com que o Sr. Zaluar se estreou na poesia intitulava-se Dores 
 Flores; foi justamente apreciado como um primeiro ensaio; mas desde então a
 crítica reconheceu no poeta um legítimo talento e o admitiu entre as esperanças
 que começavam a florir nesse tempo.
+.
 As torturas de Bossuet para descrever o sonho da heroína servem-me de aviso
 nesta conjuntura, mas tiram-me uma das mais apropriadas figuras, com que eu
 poderia definir o resultado mau e o resultado bom dessas esperanças nascentes.
